@@ -11,6 +11,90 @@ PostgreSQL
 README.md файл вложить результаты (текст или скриншоты) проверки  
 работы репликации и резервного копирования.  
 ## Выполнение
+Стенд из 3 ВМ - *server*, *replica*, *backup*  
+настраивается автоматически плэйбуком [pg.yml](pg.yml)
+
+server - основная ВМ, с которой будет проходить  
+репликация на replica и резервное копирование на backup  
+
+###
+На все ВМ устаналивается пакет
+postgresql11-server из PGDG CentOS repositories
+
+На Server
+barman-cli из 2ndquadrant-dl-default-release-pg11
+
+На backup
+barman из 2ndquadrant-dl-default-release-pg11
+### Конфиг server
+[pg_hba.conf](files/server/pg_hba.conf)  
+нужно указать с каких адресов будут подключатся replica и backup  
+```bash
+host    all             all             192.168.27.152/32       md5
+host    replication     all             192.168.27.151/32       md5
+host	replication     all	        192.168.27.152/32       md5
+```
+[postgresql.conf](files/server/postgresql.conf)
+включить режим репликации и подключение к barman  
+```bash
+listen_addresses = 'localhost,192.168.27.150'
+wal_level = replica
+archive_mode = on
+archive_command = 'barman-wal-archive 192.168.27.152 server %p'
+```
+для демонстрации в СУБД загружается демо база postgrespro  
+```bash
+psql -f /tmp/demo_small.sql
+```
+создать пользователей replica и backup  
+```bash
+$createuser -s -P barman
+$createuser -l --replication -P replica
+```
+создается слот репликации для replica  
+```bash
+psql -c "SELECT pg_create_physical_replication_slot('replica');"
+```
+### Конфиг replica
+перед запуском репликации делается резервное копирование основного сервера  
+```bash
+pg_basebackup -h 192.168.27.150 -D /var/lib/pgsql/11/data -U replica
+```
+[recovery.conf](files/replica/recovery.conf) 
+подключение к серверу  
+```bash
+standby_mode = 'on'
+primary_conninfo = 'user=replica host=192.168.27.150'
+primary_slot_name = 'replica'
+```
+[postgresql.conf](files/replica/postgresql.conf)  
+```bash
+listen_addresses = 'localhost,192.168.27.151'
+hot_standby = on
+```
+### Конфиг backup
+для работы barman выполняется обмен ключами с основным сервером  
+в crontab создается задание для запуска barman  
+
+[server.conf](files/backup/server.conf)  
+подключение к основному серверу  
+политика хранения резервных копий  
+префикс пути к исполняемым файлам postrgesql 
+```bash
+[server]
+description = "main server"
+conninfo = host=192.168.27.150 user=barman dbname=demo
+backup_method = postgres
+streaming_conninfo = host=192.168.27.150 user=barman dbname=demo
+streaming_archiver = on
+slot_name = barman
+create_slot = auto
+archiver = on
+retention_policy_mode = auto
+retention_policy = RECOVERY WINDOW OF 1 MONTHS
+wal_retention_policy = main
+path_prefix="/usr/pgsql-11/bin"
+```
 
 ## Проверка
 ### Основной сервер
