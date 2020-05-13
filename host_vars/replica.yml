@@ -1,0 +1,3 @@
+server: false
+backup: false
+replica: true

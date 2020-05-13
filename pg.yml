@@ -1,0 +1,225 @@
+---
+- name: PostgreSQL backup and replication
+  hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Install EPEL
+      yum:
+        name: epel-release
+        state: present
+
+    - name: Exclude pgsql from base
+      lineinfile:
+        path: /etc/yum.repos.d/CentOS-Base.repo
+        line: exclude=postgresql*
+        state: present
+
+    - name: PostgreSQL repo
+      yum:
+        name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+        state: present
+
+    - name: Exclude barman from PostgreSQL repo
+      lineinfile:
+        path: /etc/yum.repos.d/pgdg-redhat-all.repo
+        line: exclude=barman*
+        state: present
+
+    - name: Barman repo
+      shell: curl https://dl.2ndquadrant.com/default/release/get/11/rpm | sudo bash
+
+    - name: packages all
+      yum:
+        name: postgresql11-server
+        state: present
+
+    - name: packages server
+      yum:
+        name: 
+        - barman-cli
+        - unzip
+        state: present
+      when: server
+
+    - name: packages backup
+      yum:
+        name: barman
+        state: present
+      when: backup
+
+    - name: Initialize the Database
+      command: /usr/pgsql-11/bin/postgresql-11-setup initdb
+      args:
+        creates: /var/lib/pgsql/11/data/base
+      when: server
+
+    - name: server config
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: postgres
+        group: postgres
+      with_items:
+        - { src: 'server/pg_hba.conf', dest: '/var/lib/pgsql/11/data/pg_hba.conf'}
+        - { src: 'server/postgresql.conf', dest: '/var/lib/pgsql/11/data/postgresql.conf'}
+      when: server
+
+    - name: start PGSQL
+      systemd:
+        state: restarted
+        name: postgresql-11
+        enabled: yes
+      when: server
+
+    - name: create pg users
+      postgresql_user:
+        db: postgres
+        name: "{{ item.name }}"
+        password: "{{ item.password }}"
+        role_attr_flags: "{{ item.flags }}"
+      become: true
+      become_user: postgres
+      with_items:
+        - { name: barman, password: otus2020, flags: SUPERUSER}
+        - { name: replica, password: otus2020, flags: REPLICATION,LOGIN}
+      when: server
+
+    - name: download pgpro demo base
+      get_url:
+        url: https://edu.postgrespro.ru/demo-small-20161013.zip
+        dest: /tmp
+      when: server
+
+    - name: unpack db
+      shell: unzip /tmp/demo-small-20161013.zip -d /tmp
+      when: server
+
+    - name: Load demo base
+      become: true 
+      become_user: postgres
+      shell: psql -f /tmp/demo_small.sql
+      when: server
+
+    - name: Create replica slot
+      become_user: postgres
+      postgresql_slot:
+        slot_name: replica
+      when: server
+
+    - name: pgpass file for replica
+      copy:
+        src: replica/.pgpass
+        dest: /var/lib/pgsql/.pgpass
+        owner: postgres
+        group: postgres
+        mode: 0600
+      when: replica
+
+    - name: do PG_BASEBACKUP 
+      become_user: postgres
+      shell: pg_basebackup -h 192.168.27.150 -D /var/lib/pgsql/11/data -U replica
+      ignore_errors: yes
+      when: replica
+
+    - name: replica config
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: postgres
+        group: postgres
+      with_items:
+        - { src: 'replica/recovery.conf', dest: '/var/lib/pgsql/11/data/recovery.conf'}
+        - { src: 'replica/postgresql.conf', dest: '/var/lib/pgsql/11/data/postgresql.conf'}
+      when: replica
+
+    - name: start PGSQL
+      systemd:
+        state: restarted
+        name: postgresql-11
+        enabled: yes
+      when: replica
+
+    - name: barman config
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: barman
+        group: barman
+        mode: 0600
+      with_items:
+        - { src: 'backup/.pgpass', dest: '/var/lib/barman/.pgpass'}
+        - { src: 'backup/server.conf', dest: '/etc/barman.d/server.conf'}
+      when: backup
+
+    - name: keys path on server
+      file:
+        path: /var/lib/pgsql/.ssh
+        group: postgres
+        owner: postgres
+        state: directory
+        mode: 0755
+      when: server
+
+    - name: keys path on backup
+      file:
+        path: /var/lib/barman/.ssh
+        group: barman
+        owner: barman
+        mode: 0755
+        state: directory
+      when: backup
+
+    - name: gen server keys
+      openssh_keypair:
+        path: /var/lib/pgsql/.ssh/id_rsa
+        group: postgres
+        owner: postgres
+      when: server
+
+    - name: post server pub
+      shell: cat /var/lib/pgsql/.ssh/id_rsa.pub
+      register: server_pub
+      when: server
+
+    - name: save server key on backup
+      authorized_key:
+        user: barman
+        key: "{{ hostvars['server'].server_pub.stdout }}"
+      when: backup
+
+    - name: gen backup key
+      openssh_keypair:
+        path: /var/lib/barman/.ssh/id_rsa
+        group: barman
+        owner: barman
+      when: backup
+
+    - name: post backup pub
+      shell: cat /var/lib/barman/.ssh/id_rsa.pub
+      register: backup_pub
+      when: backup
+
+    - name: save backup key on server
+      authorized_key:
+        user: postgres
+        key: "{{ hostvars['backup'].backup_pub.stdout }}"
+      when: server
+
+    - name: barman cron job
+      lineinfile:
+        path: /etc/crontab
+        line: "* * * * * barman /usr/bin/barman cron"
+        state: present
+      when: backup
+
+    - name: barman create slot and testing
+      shell: "{{ item }}"
+      ignore_errors: yes
+      with_items:
+        - barman receive-wal --create-slot server
+        - barman switch-wal --force --archive --archive-timeout 60 server
+        - barman switch-wal --force --archive --archive-timeout 60 server
+      when: backup
+
