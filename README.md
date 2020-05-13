@@ -9,7 +9,7 @@ PostgreSQL
 либо скрипт резервного копирования. Команда "vagrant up" должна поднимать  
 машины с настроенной репликацией и резервным копированием. Рекомендуется в  
 README.md файл вложить результаты (текст или скриншоты) проверки  
-работы репликации и резервного копирования.  
+работы репликации и резервного копирования.
 ## Выполнение
 ```bash
 vagrant up
@@ -18,12 +18,12 @@ vagrant up
 настраивается автоматически плэйбуком [pg.yml](pg.yml)  
 
 server - основная ВМ, с которой будет проходить  
-репликация на replica и резервное копирование на backup  
+репликация на replica и резервное копирование на backup
 ### Установка пакетов
 На все ВМ устаналивается пакет  
 **postgresql11-server** из PGDG CentOS repositories  
 На server  
-**barman-cli** из 2ndquadrant-dl-default-release-pg11
+**barman-cli** из 2ndquadrant-dl-default-release-pg11  
 На backup  
 **barman** из 2ndquadrant-dl-default-release-pg11
 ### Конфиг server
@@ -35,53 +35,53 @@ host    replication     all             192.168.27.151/32       md5
 host	replication     all	        192.168.27.152/32       md5
 ```
 [postgresql.conf](files/server/postgresql.conf)
-включить режим репликации и подключение к barman  
+включить режим репликации и подключение к barman
 ```bash
 listen_addresses = 'localhost,192.168.27.150'
 wal_level = replica
 archive_mode = on
 archive_command = 'barman-wal-archive 192.168.27.152 server %p'
 ```
-для демонстрации в СУБД загружается демо база postgrespro  
+для демонстрации в СУБД загружается демо база postgrespro
 ```bash
 psql -f /tmp/demo_small.sql
 ```
-создать пользователей replica и backup  
+создать пользователей replica и backup
 ```bash
 $createuser -s -P barman
 $createuser -l --replication -P replica
 ```
-создать слот репликации для replica  
+создать слот репликации для replica
 ```bash
 psql -c "SELECT pg_create_physical_replication_slot('replica');"
 ```
 ### Конфиг replica
-перед запуском репликации делается резервное копирование основного сервера  
+перед запуском репликации делается резервное копирование основного сервера
 ```bash
 pg_basebackup -h 192.168.27.150 -D /var/lib/pgsql/11/data -U replica
 ```
 [recovery.conf](files/replica/recovery.conf) 
-подключение к серверу  
+подключение к серверу
 ```bash
 standby_mode = 'on'
 primary_conninfo = 'user=replica host=192.168.27.150'
 primary_slot_name = 'replica'
 ```
-[postgresql.conf](files/replica/postgresql.conf)  
+[postgresql.conf](files/replica/postgresql.conf)
 ```bash
 listen_addresses = 'localhost,192.168.27.151'
 hot_standby = on
 ```
 ### Конфиг backup
 для работы barman выполняется обмен ключами с основным сервером  
-в crontab создается задание для запуска barman  
+в crontab создается задание для запуска barman
 ```bash
 * * * * * barman /usr/bin/barman cron
 ```
 [server.conf](files/backup/server.conf)  
 подключение к основному серверу  
 политика хранения резервных копий  
-префикс пути к исполняемым файлам postrgesql 
+префикс пути к исполняемым файлам postrgesql
 ```bash
 [server]
 description = "main server"
@@ -97,7 +97,6 @@ retention_policy = RECOVERY WINDOW OF 1 MONTHS
 wal_retention_policy = main
 path_prefix="/usr/pgsql-11/bin"
 ```
-
 ## Проверка
 ### Основной сервер
 ```bash
