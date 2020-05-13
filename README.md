@@ -98,7 +98,7 @@ wal_retention_policy = main
 path_prefix="/usr/pgsql-11/bin"
 ```
 ## Проверка
-### Основной сервер
+**Основной сервер**
 ```bash
 [root@centos7 linux-dz-27]# vagrant ssh server
 Last login: Wed May 13 08:44:30 2020 from 10.0.2.2
@@ -153,8 +153,7 @@ sync_state       | async
 
 postgres=# 
 ```
-
-### Сервер резервного копирования
+**Сервер резервного копирования**
 ```bash
 [root@backup ~]# barman check server
 Server server:
