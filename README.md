@@ -111,44 +111,44 @@ psql (11.7)
 Type "help" for help.
 
 postgres=# SELECT * FROM pg_stat_replication \gx
--[ RECORD 1 ]----+------------------------------
-pid              | 6838
+-[ RECORD 1 ]----+-----------------------------
+pid              | 6613
 usesysid         | 16385
 usename          | replica
 application_name | walreceiver
 client_addr      | 192.168.27.151
 client_hostname  | 
-client_port      | 42336
-backend_start    | 2020-05-13 08:44:20.85507+00
+client_port      | 56950
+backend_start    | 2020-05-13 09:51:48.96844+00
 backend_xmin     | 
 state            | streaming
-sent_lsn         | 0/12001358
-write_lsn        | 0/12001358
-flush_lsn        | 0/12001358
-replay_lsn       | 0/12001358
+sent_lsn         | 0/12000428
+write_lsn        | 0/12000428
+flush_lsn        | 0/12000428
+replay_lsn       | 0/12000428
 write_lag        | 
 flush_lag        | 
 replay_lag       | 
 sync_priority    | 0
 sync_state       | async
--[ RECORD 2 ]----+------------------------------
-pid              | 7114
+-[ RECORD 2 ]----+-----------------------------
+pid              | 6884
 usesysid         | 16384
 usename          | barman
 application_name | barman_receive_wal
 client_addr      | 192.168.27.152
 client_hostname  | 
-client_port      | 59732
-backend_start    | 2020-05-13 08:45:03.530018+00
+client_port      | 53764
+backend_start    | 2020-05-13 09:52:03.30608+00
 backend_xmin     | 
 state            | streaming
-sent_lsn         | 0/12001358
-write_lsn        | 0/12001358
+sent_lsn         | 0/12000428
+write_lsn        | 0/12000428
 flush_lsn        | 0/12000000
 replay_lsn       | 
-write_lag        | 00:00:00.000539
-flush_lag        | 00:12:02.798423
-replay_lag       | 00:12:33.637873
+write_lag        | 00:00:02.167158
+flush_lag        | 00:14:15.448441
+replay_lag       | 00:15:15.739525
 sync_priority    | 0
 sync_state       | async
 
@@ -181,3 +181,4 @@ Server server:
 	archive_command: OK
 	archiver errors: OK
 ```
+
