@@ -11,21 +11,21 @@ PostgreSQL
 README.md файл вложить результаты (текст или скриншоты) проверки  
 работы репликации и резервного копирования.  
 ## Выполнение
-Стенд из 3 ВМ - *server*, *replica*, *backup*  
-настраивается автоматически плэйбуком [pg.yml](pg.yml)
+```bash
+vagrant up
+```
+Стенд из 3 ВМ - **server**, **replica**, **backup**  
+настраивается автоматически плэйбуком [pg.yml](pg.yml)  
 
 server - основная ВМ, с которой будет проходить  
 репликация на replica и резервное копирование на backup  
-
-###
-На все ВМ устаналивается пакет
-postgresql11-server из PGDG CentOS repositories
-
-На Server
-barman-cli из 2ndquadrant-dl-default-release-pg11
-
-На backup
-barman из 2ndquadrant-dl-default-release-pg11
+### Установка пакетов
+На все ВМ устаналивается пакет  
+**postgresql11-server** из PGDG CentOS repositories  
+На server  
+**barman-cli** из 2ndquadrant-dl-default-release-pg11
+На backup  
+**barman** из 2ndquadrant-dl-default-release-pg11
 ### Конфиг server
 [pg_hba.conf](files/server/pg_hba.conf)  
 нужно указать с каких адресов будут подключатся replica и backup  
