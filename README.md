@@ -51,7 +51,7 @@ psql -f /tmp/demo_small.sql
 $createuser -s -P barman
 $createuser -l --replication -P replica
 ```
-создается слот репликации для replica  
+создать слот репликации для replica  
 ```bash
 psql -c "SELECT pg_create_physical_replication_slot('replica');"
 ```
