@@ -75,7 +75,9 @@ hot_standby = on
 ### Конфиг backup
 для работы barman выполняется обмен ключами с основным сервером  
 в crontab создается задание для запуска barman  
-
+```bash
+* * * * * barman /usr/bin/barman cron
+```
 [server.conf](files/backup/server.conf)  
 подключение к основному серверу  
 политика хранения резервных копий  
